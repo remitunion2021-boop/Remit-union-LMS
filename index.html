@@ -2683,9 +2683,9 @@
               ${state.profile.role === 'admin' ? `
                 <td>
                   ${u.uid === state.profile.uid ? '' : (
-            u.role === 'member' ? `<button class="btn btn-secondary btn-sm" onclick="setUserRole('${u.uid}','subadmin')">Make Sub-Admin</button>` :
-              u.role === 'subadmin' ? `<button class="btn btn-secondary btn-sm" onclick="setUserRole('${u.uid}','member')">Make Member</button>` : ''
-          )}
+              u.role === 'member' ? `<button class="btn btn-secondary btn-sm" onclick="setUserRole('${u.uid}','subadmin')">Make Sub-Admin</button>` :
+                u.role === 'subadmin' ? `<button class="btn btn-secondary btn-sm" onclick="setUserRole('${u.uid}','member')">Make Member</button>` : ''
+            )}
                 </td>
               ` : ''}
             </tr>
@@ -4907,10 +4907,10 @@ Strict Rules:
           <p style="color:var(--ink-600);font-size:14px;margin-bottom:16px;">"${escapeHtml(title || '')}" has expired and is no longer available for immediate access. Send a written request to your Admin to unlock it.</p>
           <div class="field" style="margin-bottom:6px;">
             <label>Reason for access request (required)</label>
-            <textarea id="expiryReqReason" placeholder="e.g. I need to complete this before my compliance review on…" style="min-height:80px;"></textarea>
+            <textarea id="expiryReqReason" placeholder="e.g., Due to high operational demands and live processing duties, I was unable to complete the assessment on time..." style="min-height:80px;"></textarea>
             <div id="expiryReqReasonError" class="hint" style="display:none;color:var(--bad-600);font-weight:600;margin-top:4px;">Please enter a reason before sending.</div>
           </div>
-          <button class="btn btn-primary btn-sm" id="sendExpiryRequestBtn" style="width:100%;margin:14px 0 10px;">Send Written Request to Admin</button>
+          <button class="btn btn-primary btn-sm" id="sendExpiryRequestBtn" style="width:100%;margin:14px 0 10px;">Send Request</button>
           <button class="btn btn-secondary btn-sm" id="cancelExpiryRequestBtn" style="width:100%;">Cancel</button>
         </div>
       `;
