@@ -1,0 +1,10 @@
+[build]
+  functions = "netlify/functions"
+  publish = "."
+
+# Keeps index.html's existing relative fetch('/api/ai-proxy') working unchanged —
+# it transparently redirects to the Netlify Function.
+[[redirects]]
+  from = "/api/ai-proxy"
+  to = "/.netlify/functions/ai-proxy"
+  status = 200
