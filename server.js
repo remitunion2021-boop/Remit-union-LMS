@@ -34,7 +34,7 @@ app.get('/:file', (req, res) => {
 // VPNs, or antivirus/firewall software intercepting HTTPS traffic.
 async function callBluesmind(payload, apiKey, attempt = 1) {
   try {
-    return await fetch('https://api.bluesmind/v1/chat/completions', {
+    return await fetch('https://api.bluesminds.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
@@ -62,7 +62,7 @@ app.post('/api/ai-proxy', async (req, res) => {
 
   try {
     const response = await callBluesmind({
-      model: model || process.env.BLUESMIND_MODEL || 'nvidia/nemotron-3-ultra-550b-a55b:free',
+      model: model || process.env.BLUESMIND_MODEL || 'gpt-4o-mini',
       messages,
       temperature,
       max_tokens: Math.min(Number(req.body.max_tokens) || 2000, 2000)
