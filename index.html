@@ -4043,10 +4043,10 @@
 
     /* =========================================================
        AI SEARCHER — compliance / AML / fraud / cyber trainer
-       Calls our local proxy server (server.js) — API key lives in .env on the backend.
+       Calls OpenRouter directly from the browser (internal-team-only tool).
     ========================================================= */
-    const AI_PROXY_URL = '/api/ai-proxy';   // proxied through our Express server / Cloud Function (Bluesmind) — key lives only in .env / Secret Manager on the backend
-    const BLUESMIND_MODEL = 'gpt-4o-mini'; // BluesMinds uses plain model IDs — check GET /v1/models for your plan's available list
+    const OPENROUTER_API_KEY = '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';
+    const OPENROUTER_MODEL = 'nvidia/nemotron-3-ultra-550b-a55b:free';
     const AI_TRAINER_SYSTEM = `You are an expert Compliance and AML Trainer for Remit Union. Your team members are busy compliance analysts. 
 
 For any term, concept, or regulation searched by the user, you must structure the response strictly into these three short points, keeping every point strictly to **one single line** (maximum 1-2 short sentences):
@@ -4081,19 +4081,24 @@ Strict Rules:
         { role: 'user', content: query }
       ];
 
-      // Call our own backend proxy (server.js locally / Cloud Function in prod) —
-      // the Bluesmind API key stays server-side only and is never sent to the browser.
-      const res = await fetch(AI_PROXY_URL, {
+      // Direct call to OpenRouter (internal tool — key is embedded in this page).
+      const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: BLUESMIND_MODEL, messages, temperature: 0.4 })
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+          'HTTP-Referer': window.location.origin,
+          'X-Title': 'Remit Union AML Academy'
+        },
+        body: JSON.stringify({ model: OPENROUTER_MODEL, messages, temperature: 0.4, max_tokens: 2000 })
       });
       if (!res.ok) {
         const t = await res.text();
         throw new Error('AI request failed (' + res.status + '). ' + (t || '').slice(0, 180));
       }
       const data = await res.json();
-      return (data && data.content) ? data.content.trim() : '';
+      const content = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+      return content ? content.trim() : '';
     }
 
     function renderAiSearchState() {
@@ -4524,60 +4529,7 @@ Strict Rules:
       } catch (e) { showToast(mapAuthError(e), 'error'); }
     }
 
-    // Stop quiz on wrong answer for member - show explanation and feedback
-    function proceedAfterWrongAnswer() {
-      const quiz = state.takingQuiz;
-      const qi = state.qIndex;
-      const q = quiz.questions[qi];
-      const given = state._lastGivenAnswer;
-
-      // Get the user's selected answer text
-      let givenText = '';
-      if (Array.isArray(given)) {
-        givenText = given.map(gi => q.options[gi]).filter(Boolean).join(', ');
-      } else if (given !== undefined && given !== null && given >= 0) {
-        givenText = q.options[given];
-      } else {
-        givenText = '(No answer - time ran out)';
-      }
-
-      // Get correct answer text
-      let correctText = '';
-      if (Array.isArray(q.correct)) {
-        correctText = q.correct.map(ci => q.options[ci]).filter(Boolean).join(', ');
-      } else if (q.correct !== undefined && q.correct !== null) {
-        correctText = q.options[q.correct];
-      }
-
-      app.innerHTML = `
-    <div class="wrap narrow" style="padding-top:14px;">
-      <div class="card">
-        <h2 style="margin-top:0;font-size:16px;">Incorrect Answer - Explanation</h2>
-        <p style="color:var(--ink-600);font-size:13.5px;margin-bottom:14px;">Review your answer below, then provide your feedback before continuing.</p>
-        <div style="margin:18px 0;padding:12px 14px;background:var(--paper-dim);border-radius:8px;">
-          <h4 style="margin:0 0 8px;color:var(--navy-950);">Your Selected Answer</h4>
-          <div class="hint">${escapeHtml(givenText)}</div>
-        </div>
-        <div style="margin:18px 0;padding:12px 14px;background:var(--ok-100);border-left:4px solid var(--ok-600);border-radius:8px;">
-          <h4 style="margin:0 0 8px;color:var(--ok-600);">Question Explanation</h4>
-          <div class="academy-text" style="font-size:14px;line-height:1.7;">${escapeHtml(q.description || 'No explanation provided.')}</div>
-        </div>
-        <div style="margin:18px 0;padding:12px 14px;background:var(--bad-100);border-radius:8px;">
-          <h4 style="margin:0 0 8px;color:var(--bad-600);">Correct Answer</h4>
-          <div class="hint">${escapeHtml(correctText)}</div>
-        </div>
-        <div class="field" style="margin-top:16px;">
-          <label>Feedback (required)</label>
-          <textarea id="wrongAnswerFeedback" placeholder="What made you choose the wrong option? What was your thought process?" required></textarea>
-          <div id="feedbackError" class="error-box" style="display:none;margin-top:8px;color:var(--bad-600);font-size:12px;">Please provide feedback before continuing.</div>
-        </div>
-        <div style="display:flex;gap:10px;margin-top:10px;">
-          <button class="btn btn-navy" onclick="submitWrongFeedbackAndContinue()">Submit Feedback & Continue</button>
-        </div>
-      </div>
-    </div>
-  `;
-    }
+    // Stop quiz on wrong answer for member - show explanation and feedback (see renderWrongAnswer, above)
 
     function submitWrongFeedbackAndContinue() {
       const feedbackEl = document.getElementById('wrongAnswerFeedback');
@@ -4907,10 +4859,10 @@ Strict Rules:
           <p style="color:var(--ink-600);font-size:14px;margin-bottom:16px;">"${escapeHtml(title || '')}" has expired and is no longer available for immediate access. Send a written request to your Admin to unlock it.</p>
           <div class="field" style="margin-bottom:6px;">
             <label>Reason for access request (required)</label>
-            <textarea id="expiryReqReason" placeholder="e.g., Due to high operational demands and live processing duties, I was unable to complete the assessment on time..." style="min-height:80px;"></textarea>
+            <textarea id="expiryReqReason" placeholder="e.g. I need to complete this before my compliance review on…" style="min-height:80px;"></textarea>
             <div id="expiryReqReasonError" class="hint" style="display:none;color:var(--bad-600);font-weight:600;margin-top:4px;">Please enter a reason before sending.</div>
           </div>
-          <button class="btn btn-primary btn-sm" id="sendExpiryRequestBtn" style="width:100%;margin:14px 0 10px;">Send Request</button>
+          <button class="btn btn-primary btn-sm" id="sendExpiryRequestBtn" style="width:100%;margin:14px 0 10px;">Send Written Request to Admin</button>
           <button class="btn btn-secondary btn-sm" id="cancelExpiryRequestBtn" style="width:100%;">Cancel</button>
         </div>
       `;
@@ -5360,6 +5312,14 @@ Strict Rules:
         givenExplanation = explanations[given];
       }
 
+      // Get per-option explanation for the correct answer
+      let correctExplanation = '';
+      if (Array.isArray(question.correct)) {
+        correctExplanation = question.correct.map(ci => explanations[ci] || '').filter(Boolean).join(' ');
+      } else if (question.correct !== undefined && question.correct !== null && explanations[question.correct]) {
+        correctExplanation = explanations[question.correct];
+      }
+
       let aiArea;
       if (a.loading) {
         aiArea = `<div class="center-loading" style="padding:22px 10px;"><div class="spinner"></div>AI is preparing your detailed explanation…</div>`;
@@ -5378,25 +5338,32 @@ Strict Rules:
           <div class="seal"><span class="icon-3d">&#128737;</span></div>
           <h2 style="margin-bottom:4px;">Incorrect Answer - Explanation Required</h2>
           <p style="color:var(--ink-600);font-size:13.5px;margin-top:4px;">Your answer was incorrect. Please read the explanation below before proceeding.</p>
-          <div style="margin:18px 0;padding:12px 14px;background:var(--paper-dim);border-radius:8px;">
-            <h4 style="margin:0 0 8px;color:var(--navy-950);">Your Selected Answer</h4>
-            <div class="hint">${escapeHtml(givenText)}</div>
-            ${givenExplanation ? `<div class="academy-text" style="font-size:13px;line-height:1.6;margin-top:8px;color:var(--ink-600);">${escapeHtml(givenExplanation)}</div>` : ''}
+          <div style="margin:18px 0;padding:14px 16px;background:var(--paper-dim);border-left:4px solid var(--navy-950);border-radius:8px;text-align:left;">
+            <h4 style="margin:0 0 8px;color:var(--navy-950);">Question</h4>
+            <div style="color:var(--ink-900);font-weight:600;font-size:14px;line-height:1.6;">${escapeHtml(question.text)}</div>
+            <div style="display:block;margin-top:10px;padding:10px 12px;background:#fff;border-radius:10px;color:var(--ink-900);font-size:13px;line-height:1.6;">${escapeHtml(question.description || 'No explanation provided.')}</div>
           </div>
-          <div style="margin:18px 0;padding:12px 14px;background:var(--ok-100);border-left:4px solid var(--ok-600);border-radius:8px;">
-            <h4 style="margin:0 0 8px;color:var(--ok-600);">Question Explanation</h4>
-            <div class="academy-text" style="font-size:14px;line-height:1.7;">${escapeHtml(state._wrongQuestion.description || 'No explanation provided.')}</div>
+          <div style="margin:18px 0;padding:14px 16px;background:var(--bad-100);border-left:4px solid var(--bad-600);border-radius:8px;">
+            <h4 style="margin:0 0 8px;color:var(--bad-600);">Your Selected Answer</h4>
+            <div style="color:var(--ink-900);font-weight:600;font-size:14px;">${escapeHtml(givenText)}</div>
+            ${givenExplanation ? `<div style="display:inline-block;margin-top:10px;padding:10px 12px;background:#fff;border-radius:10px;color:var(--ink-900);font-size:13px;line-height:1.6;">${escapeHtml(givenExplanation)}</div>` : ''}
           </div>
-          <div style="margin:18px 0;padding:12px 14px;background:var(--bad-100);border-radius:8px;">
-            <h4 style="margin:0 0 8px;color:var(--bad-600);">Correct Answer</h4>
-            <div class="hint">${escapeHtml(correctText)}</div>
+          <div style="margin:18px 0;padding:14px 16px;background:var(--ok-100);border-left:4px solid var(--ok-600);border-radius:8px;">
+            <h4 style="margin:0 0 8px;color:var(--ok-600);">Correct Answer</h4>
+            <div style="color:var(--ink-900);font-weight:600;font-size:14px;">${escapeHtml(correctText)}</div>
+            ${correctExplanation ? `<div style="display:inline-block;margin-top:10px;padding:10px 12px;background:#fff;border-radius:10px;color:var(--ink-900);font-size:13px;line-height:1.6;">${escapeHtml(correctExplanation)}</div>` : ''}
           </div>
           <div style="margin:18px 0;padding:14px;border:1px dashed var(--gold-500);border-radius:10px;background:#FFF9EE;">
             <h4 style="margin:0 0 10px;color:#8A6416;">Need a deeper explanation?</h4>
             ${aiArea}
           </div>
-          <p style="color:var(--ink-600);font-size:13px;margin-top:16px;">After reading the explanation, click Continue to provide feedback or proceed to the next question.</p>
-          <button class="btn btn-navy btn-block" onclick="proceedAfterWrongAnswer()">Continue</button>
+          <div class="field" style="margin-top:16px;text-align:left;">
+            <label>Feedback (required)</label>
+            <textarea id="wrongAnswerFeedback" placeholder="What made you choose the wrong option? What was your thought process?" required></textarea>
+            <div id="feedbackError" class="error-box" style="display:none;margin-top:8px;color:var(--bad-600);font-size:12px;">Please provide feedback before continuing.</div>
+          </div>
+          <p style="color:var(--ink-600);font-size:13px;margin-top:16px;">After reading the explanation, provide your feedback and click Continue to move to the next question.</p>
+          <button class="btn btn-navy btn-block" onclick="submitWrongFeedbackAndContinue()">Submit Feedback & Continue</button>
         </div>
       </div>
     </div>
