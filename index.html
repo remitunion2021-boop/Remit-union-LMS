@@ -3579,62 +3579,72 @@
     function renderAdminCertificate() {
       const quiz = state._certQuiz;
       const c = state._certDraft;
+
+      // Check if uploaded file is a PDF
+      const isPdf = c.fileType === 'application/pdf' || (c.dataUrl && c.dataUrl.startsWith('data:application/pdf'));
+
       app.innerHTML = `
     <button class="back-link" onclick="goto('admin-assessments')">&larr; Back to assessments</button>
     <div class="section-head">
-      <div><h2>Certificate — ${escapeHtml(quiz.title)}</h2><div class="sub">Upload a certificate design; each team member's name is placed on it automatically when they pass</div></div>
+        <div><h2>Certificate – ${escapeHtml(quiz.title)}</h2><div class="sub">Upload a certificate design (Image/PDF); position name, title, and description.</div></div>
     </div>
     <div class="row2" style="align-items:flex-start;">
-      <div class="card">
+    <div class="card">
         <div class="field">
-          <label>Certificate Template Image</label>
-          <input type="file" accept="image/*" onchange="handleCertFileUpload(this)" />
-          <div class="hint">JPG/PNG, landscape works best. Image is auto-compressed to stay free (no paid storage).</div>
+            <label>Certificate Template (Image / PDF)</label>
+            <input type="file" accept="image/*, application/pdf" onchange="handleCertFileUpload(this)" />
+            <div class="hint">JPG, PNG or PDF, landscape works best.</div>
         </div>
+
         ${c.dataUrl ? `
-          <div class="field">
-            <label>Name Position — Horizontal (${c.posX}%)</label>
-            <input type="range" min="0" max="100" value="${c.posX}" oninput="updateCertField('posX', parseInt(this.value))" />
-          </div>
-          <div class="field">
-            <label>Name Position — Vertical (${c.posY}%)</label>
-            <input type="range" min="0" max="100" value="${c.posY}" oninput="updateCertField('posY', parseInt(this.value))" />
-          </div>
-          <div class="row2">
-            <div class="field">
-              <label>Font Style</label>
-              <select onchange="updateCertField('fontFamily', this.value)">
-                <option value="Playfair Display" ${c.fontFamily === 'Playfair Display' ? 'selected' : ''}>Elegant Serif</option>
-                <option value="Sora" ${c.fontFamily === 'Sora' ? 'selected' : ''}>Modern Bold</option>
-                <option value="Inter" ${c.fontFamily === 'Inter' ? 'selected' : ''}>Clean Sans</option>
-              </select>
-            </div>
-            <div class="field">
-              <label>Font Size (px)</label>
-              <input type="number" min="16" max="140" value="${c.fontSize}" onchange="updateCertField('fontSize', parseInt(this.value)||42)" />
-            </div>
-          </div>
-          <div class="field">
-            <label>Font Color</label>
-            <input type="color" value="${c.fontColor}" onchange="updateCertField('fontColor', this.value)" style="width:100%;height:42px;padding:4px;border:1.5px solid var(--line);border-radius:9px;" />
-          </div>
-          <div style="display:flex;gap:10px;margin-top:6px;">
-            <button class="btn btn-navy" onclick="saveCertTemplate()">Save Certificate</button>
-            <button class="btn btn-danger" onclick="removeCertTemplate()">Remove</button>
-          </div>
-        ` : `<p class="hint">Upload an image to configure where the name appears.</p>`}
-      </div>
-      <div class="card" style="display:flex;align-items:center;justify-content:center;min-height:280px;">
-        ${c.dataUrl ? `<canvas id="certPreviewCanvas" style="max-width:100%;border-radius:8px;box-shadow:var(--shadow-md);"></canvas>` : `
-          <div class="empty-state">
-            <div class="em-icon icon-3d">&#127891;</div>
-            <h4>Preview will appear here</h4>
-          </div>
-        `}
-      </div>
+        <!-- Name Position Controls -->
+        <div class="field">
+            <label>Name Position - Horizontal (${c.namePosX}%)</label>
+            <input type="range" min="0" max="100" value="${c.namePosX}" oninput="updateCertField('namePosX', parseInt(this.value))" />
+        </div>
+        <div class="field">
+            <label>Name Position - Vertical (${c.namePosY}%)</label>
+            <input type="range" min="0" max="100" value="${c.namePosY}" oninput="updateCertField('namePosY', parseInt(this.value))" />
+        </div>
+
+        <!-- Title Position Controls -->
+        <div class="field">
+            <label>Title Position - Horizontal (${c.titlePosX}%)</label>
+            <input type="range" min="0" max="100" value="${c.titlePosX}" oninput="updateCertField('titlePosX', parseInt(this.value))" />
+        </div>
+        <div class="field">
+            <label>Title Position - Vertical (${c.titlePosY}%)</label>
+            <input type="range" min="0" max="100" value="${c.titlePosY}" oninput="updateCertField('titlePosY', parseInt(this.value))" />
+        </div>
+
+        <!-- Description Position Controls -->
+        <div class="field">
+            <label>Description Position - Horizontal (${c.descPosX}%)</label>
+            <input type="range" min="0" max="100" value="${c.descPosX}" oninput="updateCertField('descPosX', parseInt(this.value))" />
+        </div>
+        <div class="field">
+            <label>Description Position - Vertical (${c.descPosY}%)</label>
+            <input type="range" min="0" max="100" value="${c.descPosY}" oninput="updateCertField('descPosY', parseInt(this.value))" />
+        </div>
+        <button class="btn primary" onclick="downloadCertificatePDF()">Download Certificate</button>
+        ` : ''}
     </div>
-  `;
-      if (c.dataUrl) setTimeout(drawCertPreview, 30);
+    <div class="card" id="cert-preview-container">
+        <div style="position:relative; width:100%; height:500px; border:1px solid #ccc; background:#f9f9f9; overflow:hidden;">
+            ${c.dataUrl ? (
+          isPdf ?
+            `<embed src="${c.dataUrl}" type="application/pdf" width="100%" height="100%" />` :
+            `<img src="${c.dataUrl}" style="width:100%; height:100%; object-fit:contain; display:block;" />`
+        ) : '<div style="text-align:center; padding:50px; color:#888;">No template uploaded yet</div>'}
+
+            ${c.dataUrl ? `
+                <div style="position:absolute; left:${c.namePosX}%; top:${c.namePosY}%; transform:translate(-50%, -50%); font-weight:bold; font-size:1.5rem; color:#000; pointer-events:none; text-shadow: 1px 1px 2px #fff;">[Team Member Name]</div>
+                <div style="position:absolute; left:${c.titlePosX}%; top:${c.titlePosY}%; transform:translate(-50%, -50%); font-size:1.2rem; color:#000; pointer-events:none; text-shadow: 1px 1px 2px #fff;">${escapeHtml(quiz.title)}</div>
+                <div style="position:absolute; left:${c.descPosX}%; top:${c.descPosY}%; transform:translate(-50%, -50%); font-size:0.9rem; color:#000; pointer-events:none; text-shadow: 1px 1px 2px #fff; width: 80%; text-align: center;">[Certificate Description Here]</div>
+            ` : ''}
+        </div>
+    </div>
+    </div>`;
     }
 
     function updateCertField(field, value) {
